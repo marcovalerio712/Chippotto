@@ -35,11 +35,16 @@ class Screen {
     }
 }
 
+class FrameBuffer{
+    constructor(){
+        
+    }
+}
+
 class Memory {
     constructor() {
         this.memory = new Uint8Array(4096)
         this.initializeSpritesInMemory()
-
     }
 
     initializeSpritesInMemory() {
@@ -103,20 +108,35 @@ class Processor {
         let upperInstruction = this.Memory.getAt(this.pc)
         let lowerInstruction = this.Memory.getAt(this.pc + 1)
 
-        let fullInstruction = Number(upperInstruction).toString(16).padStart(2, "0") + Number(lowerInstruction).toString(16).padStart(2, "0")
+        let fullInstruction = upperInstruction << 8 | lowerInstruction
+        // console.log(fullInstruction.toString(2))
+        // console.log(upperInstruction.toString(2) + " | " + lowerInstruction.toString(2))
         return fullInstruction
+    }
+
+    getSubValue(instruction, hexDigit, dimension = 1){
+        let bitShift = ((3 - hexDigit - dimension + 1) << 2) 
+        let mask = 0x0
+        for(let i = 0; i < dimension; i++){
+            mask = mask << 4
+            mask = mask | 0xF
+        }
+        mask = mask << bitShift
+        let subInstruction = instruction & mask
+        return subInstruction >> bitShift
     }
 
     decode(instr) {
         console.log("PC:" + this.pc)
-        console.log("OPCode:" + instr)
+        console.log("OPCode:" + instr.toString(16))
         console.log("V:" + this.v)
         console.log("I: "+ this.i)
 
-        switch (instr[0]) {
-            case '0':
+        console.log(instr.toString(16))
+        switch (this.getSubValue(instr, 0)) {
+            case 0x0:
                 switch (instr) {
-                    case '00e0':
+                    case 0x00e0:
                         this.Screen.cls()
                         break;
 
@@ -125,28 +145,28 @@ class Processor {
                         break;
                 }
                 break
-            case '1':
-                if(parseInt(instr.slice(1), 16) == this.pc){
+            case 0x1:
+                if(this.getSubValue(instr, 1, 3) == this.pc){
                     this.stop()
                 }
                 else{
-                this.pc = parseInt(instr.slice(1), 16)
+                this.pc = this.getSubValue(instr, 1, 3)
                 }
                 break
-            case '6':
-                this.v[parseInt(instr[1], 16)] = parseInt(instr.slice(2), 16)
+            case 0x6:
+                this.v[this.getSubValue(instr, 1)] = this.getSubValue(instr, 2, 2)
                 break
-            case '7':
-                this.v[parseInt(instr[1], 16)] += parseInt(instr.slice(2), 16)
+            case 0x7:
+                this.v[this.getSubValue(instr, 1)] += this.getSubValue(instr, 2, 2)
                 break
-            case 'a':
-                this.i = parseInt(instr.slice(1), 16)
+            case 0xA:
+                this.i = this.getSubValue(instr, 1, 3);
                 //console.log(this.i)
                 break
-            case 'd':
-                let x = this.v[parseInt(instr[1], 16)]
-                let y = this.v[parseInt(instr[2], 16)]
-                let n = parseInt(instr[3], 16)
+            case 0xD:
+                let x = this.v[this.getSubValue(instr, 1)]
+                let y = this.v[this.getSubValue(instr, 2)]
+                let n = this.getSubValue(instr, 3)
                 for (let offs = 0; offs < n; offs += 1) {
                     let byteToWrite = this.Memory.getAt(this.i + offs)
                     this.Screen.writeByte(x, y + offs, byteToWrite)
