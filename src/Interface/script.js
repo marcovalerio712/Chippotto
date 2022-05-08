@@ -23,21 +23,14 @@ class Screen {
     }
     writeByte(x, y, byte) {
         console.log("Write pixel ("+x+","+y+") value: "+byte)
-        let string = byte.toString(2)
-        if (string.length < 8) {
-            let nString = ""
-            for(let i = 0; i< 8-string.length; i++){
-               nString +="0" 
-            }
-            string =  nString + string 
-        }
-        for(let offs = 0; offs < string.length; offs++){
-            this.writePixel(x+offs, y, string[offs])
+        for(let offs = 7; offs >= 0; offs--){
+            this.writePixel(x + offs, y, byte%2!=0)
+            byte = byte >> 1
         }
     }
     writePixel(x, y, v) {
         console.log("Write pixel ("+x+","+y+") type: "+v)
-        this.canvasCtx.fillStyle = (v==='0') ? "black" : "white"
+        this.canvasCtx.fillStyle = v ? "white" : "black"
         this.canvasCtx.fillRect(x * this.pixelWidthSize, y * this.pixelHeightSize, this.pixelWidthSize, this.pixelHeightSize)
     }
 }
@@ -93,15 +86,9 @@ class Processor {
     constructor(Memory, Screen) {
         this.Memory = Memory
         this.Screen = Screen
-
-
         this.v = new Uint8Array(16)
-
         this.i = 0
-
         this.pc = 0x200
-
-
     }
 
     run() {
@@ -184,34 +171,20 @@ class Chippotto {
         this.Screen = new Screen(screen)
         this.Processor = new Processor(this.Memory, this.Screen)
 
-
-
-
-
-
         this.Rom = LoadRom
-
         this.initializeEmulator()
-
-
     }
 
 
 
 
     initializeEmulator() {
-
-
-
-
         this.Rom.addEventListener("click", () => {
             fetch('./../../IgnoreForTest/chip8-roms-master/chip8-roms-master/programs/IBM Logo.ch8')
                 .then((data) => data.blob())
                 .then((c) => c.arrayBuffer())
                 .then((aB) => {
                     let code = new Uint8Array(aB)
-
-                    //                    console.log(code)
                     this.Memory.loadRom(code)
                     this.Processor.run()
                 })
