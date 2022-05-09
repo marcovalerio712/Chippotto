@@ -21,7 +21,7 @@ class Screen {
     }
     writeByte(x, y, byte) {
         for(let offs = 7; offs >= 0; offs--){
-            this.writePixel(x + offs, y, byte%2!=0)
+            this.writePixel(x + offs, y, byte & 0x1)
             byte = byte >> 1
         }
     }

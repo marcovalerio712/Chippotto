@@ -67,6 +67,7 @@ class Processor {
     jump(instr){
         if(this.getSubValue(instr, 1, 3) == this.pc) this.stop();
         else this.pc = this.getSubValue(instr, 1, 3);
+        pc = pc - 2;
     }
     //  6XYY - Set Register Vx to YY Value
     setRegisterV(instr){
@@ -87,7 +88,7 @@ class Processor {
                 let n = this.getSubValue(instr, 3)
                 for (let offs = 0; offs < n; offs += 1) {
                     let byteToWrite = this.Memory.getAt(this.i + offs)
-                    this.Screen.writeByte(x, y + offs, byteToWrite)
+                    setTimeout(()=>{this.Screen.writeByte(x, y + offs, byteToWrite)}, 0);
                 }
     }
 
