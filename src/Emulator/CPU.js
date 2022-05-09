@@ -13,10 +13,11 @@ class Processor {
         this.setupInstructionSet()
     }
 
+    //This method initializes the structure that maps the opcodes to the class methods that implement them
     setupInstructionSet(){
         this.instructionSet = new Map();
         
-        //These cases map 1 on 1 on instructions of the processor, implemented dedicated  by methods
+        //These cases map 1 on 1 on instructions of the processor, implemented by dedicated methods
         this.instructionSet.set(0x00E0, (opCode) => this.cls(opCode));
         this.instructionSet.set(0x00EE, (opCode) => null);
         this.instructionSet.set(0x1000, (opCode) => this.jump(opCode));
@@ -37,6 +38,7 @@ class Processor {
         }
     }
 
+    //This method reads the next 2 byte to PC and combine them into a single 16 bit word representing the opcode
     fetchInstruction() {
         let upperInstruction = this.Memory.getAt(this.pc)
         let lowerInstruction = this.Memory.getAt(this.pc + 1)
@@ -44,6 +46,7 @@ class Processor {
         return fullInstruction
     }
 
+    //This method retrieves the correct function from the hash-map given the opcode, and executes it
     executeInstruction(opCode, mask = 0xF000){
         const operation = this.instructionSet.get(opCode & mask)
         operation(opCode);
@@ -53,6 +56,9 @@ class Processor {
     stop(){
         this.pc=4097
     }
+
+    //Listed below there are all the instructions implemented by the chip-8 processor
+
     //  00E0
     cls(instr){
         this.Screen.cls()
@@ -85,6 +91,11 @@ class Processor {
                 }
     }
 
+    //END OF Instruction Set ---------
+
+    //This method returns a numeric value of (4 * dimension) bits representing 
+    //a subset of sequential bits of the given instruction.
+    //The subset starts at the (hexDigit * 4) bit 
     getSubValue(instruction, hexDigit, dimension = 1){
         let bitShift = ((3 - hexDigit - dimension + 1) << 2) 
         let mask = 0x0
