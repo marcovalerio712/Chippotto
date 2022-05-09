@@ -20,14 +20,12 @@ class Screen {
         this.canvasCtx.fillRect(0, 0, this.canvas.width, this.canvas.height)
     }
     writeByte(x, y, byte) {
-        console.log("Write pixel ("+x+","+y+") value: "+byte)
         for(let offs = 7; offs >= 0; offs--){
             this.writePixel(x + offs, y, byte%2!=0)
             byte = byte >> 1
         }
     }
     writePixel(x, y, v) {
-        console.log("Write pixel ("+x+","+y+") type: "+v)
         this.canvasCtx.fillStyle = v ? "white" : "black"
         this.canvasCtx.fillRect(x * this.pixelWidthSize, y * this.pixelHeightSize, this.pixelWidthSize, this.pixelHeightSize)
     }
