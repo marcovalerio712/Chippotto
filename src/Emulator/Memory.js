@@ -42,6 +42,9 @@ class Memory {
     getAt(addr) {
         return this.memory[addr]
     }
+    setAt(addr, value){
+        this.memory[addr] = value
+    }
 }
 
 export default Memory;

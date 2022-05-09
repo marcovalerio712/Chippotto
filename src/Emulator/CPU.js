@@ -5,12 +5,24 @@ class Processor {
     constructor(Memory, Screen) {
         this.Memory = Memory
         this.Screen = Screen
+        this.Stack = new Uint16Array(32)
         
         this.v = new Uint8Array(16)
         this.i = 0
         this.pc = 0x200
+        this.sp = 0
 
         this.setupInstructionSet()
+    }
+
+    pushToStack(val){
+        this.Stack[this.sp] = val
+        this.sp++;
+    }
+
+    popFromStack(){
+        this.sp--;
+        return this.Stack[this.sp]
     }
 
     //This method initializes the structure that maps the opcodes to the class methods that implement them
@@ -19,20 +31,53 @@ class Processor {
         
         //These cases map 1 on 1 on instructions of the processor, implemented by dedicated methods
         this.instructionSet.set(0x00E0, (opCode) => this.cls(opCode));
-        this.instructionSet.set(0x00EE, (opCode) => null);
+        this.instructionSet.set(0x00EE, (opCode) => this.ret(opCode));
         this.instructionSet.set(0x1000, (opCode) => this.jump(opCode));
+        this.instructionSet.set(0x2000, (opCode) => this.call(opCode));
+        this.instructionSet.set(0x3000, (opCode) => this.skipIfEqualConst(opCode));
+        this.instructionSet.set(0x4000, (opCode) => this.skipIfNotEqualConst(opCode));
+        this.instructionSet.set(0x5000, (opCode) => this.skipIfEqual(opCode));
         this.instructionSet.set(0x6000, (opCode) => this.setRegisterV(opCode));
         this.instructionSet.set(0x7000, (opCode) => this.addToRegisterV(opCode));
+        this.instructionSet.set(0x8001, (opCode) => this.setRegisterV(opCode));
+        this.instructionSet.set(0x8002, (opCode) => this.orRegisters(opCode));
+        this.instructionSet.set(0x8003, (opCode) => this.andRegisterV(opCode));
+        this.instructionSet.set(0x8004, (opCode) => this.xorRegisterV(opCode));
+        this.instructionSet.set(0x8005, (opCode) => this.addRegisters(opCode));
+        this.instructionSet.set(0x8006, (opCode) => this.diffRegisters(opCode));
+        this.instructionSet.set(0x8007, (opCode) => this.shiftRight(opCode));
+        this.instructionSet.set(0x8008, (opCode) => this.diffRegisters2(opCode));
+        this.instructionSet.set(0x800F, (opCode) => this.shiftLeft(opCode));
+        this.instructionSet.set(0x9000, (opCode) => this.skipIfNotEqual(opCode));
         this.instructionSet.set(0xA000, (opCode) => this.setI(opCode));
-        this.instructionSet.set(0xD000, (opCode) => this.drawSprite(opCode));    
+        this.instructionSet.set(0xB000, (opCode) => this.jumpPlusRegister(opCode));
+        this.instructionSet.set(0xC000, (opCode) => this.random(opCode));
+        this.instructionSet.set(0xD000, (opCode) => this.drawSprite(opCode));
+
+        //TODO Input Instructions
+
+        this.instructionSet.set(0xF01E, (opCode) => this.addRegisterToI(opCode));
+        this.instructionSet.set(0xF029, (opCode) => this.setIToFontLocation(opCode));
+        this.instructionSet.set(0xF033, (opCode) => this.bcdOfRegister(opCode));
+        this.instructionSet.set(0xF055, (opCode) => this.storeRegisters(opCode));
+        this.instructionSet.set(0xF065, (opCode) => this.loadRegisters(opCode));    
 
         //Put the ambiguous cases here
         this.instructionSet.set(0x0000, (opCode) => this.executeInstruction(opCode, 0xF0FF));
+        this.instructionSet.set(0x8000, (opCode) => this.executeInstruction(opCode, 0xF00F));
+        this.instructionSet.set(0xF000, (opCode) => this.executeInstruction(opCode, 0xF0FF));
     }
 
     run() {
         while (this.pc < 4096) {
             let instruction = this.fetchInstruction()
+            console.log("----------------------")
+            console.log("opcode: " + instruction.toString(16).padStart(2, '0'))
+            console.log("I: " + this.i)
+            console.log("pc: " + this.pc)
+            console.log("registers: ", this.v)
+            console.log("sp: " + this.sp)
+            console.log("stack: " + this.Stack)
             this.executeInstruction(instruction)
             this.pc += 2
         }
@@ -48,7 +93,12 @@ class Processor {
 
     //This method retrieves the correct function from the hash-map given the opcode, and executes it
     executeInstruction(opCode, mask = 0xF000){
+
+        if(opCode & mask == 0x8000)
+            opCode += 1
+
         const operation = this.instructionSet.get(opCode & mask)
+        console.log(operation)
         operation(opCode);
     }
    
@@ -59,15 +109,45 @@ class Processor {
 
     //Listed below there are all the instructions implemented by the chip-8 processor
 
-    //  00E0
+    //  00E0 - Clears the screen
     cls(instr){
         this.Screen.cls()
     }
+
+    ret(instr){
+        this.pc = this.popFromStack() - 2;
+    }
+
+    
     //  1NNN - Jump to Adress NNN
     jump(instr){
         if(this.getSubValue(instr, 1, 3) == this.pc) this.stop();
         else this.pc = this.getSubValue(instr, 1, 3);
-        pc = pc - 2;
+        this.pc = this.pc - 2;
+    }
+    //  2NNN - Call Subroutine
+    call(instr){
+        let address = this.getSubValue(instr, 1, 3);
+        this.pushToStack(this.pc)
+        this.pc = address - 2;
+    }
+    //  3XKK - Skip Next Instruction if Vx = KK
+    skipIfEqualConst(instr){
+        if(this.v[this.getSubValue(instr, 1)] == this.getSubValue(instr, 2, 2)){
+            this.pc = this.pc + 2;
+        }
+    }
+    //  4XKK - Skip Next Instruction if Vx != KK
+    skipIfNotEqualConst(instr){
+        if(this.v[this.getSubValue(instr, 1)] != this.getSubValue(instr, 2, 2)){
+            this.pc = this.pc + 2;
+        }
+    }
+    //  5XY0 - Skip Next Instruction if Vx = Vy
+    skipIfEqual(instr){
+        if(this.v[this.getSubValue(instr, 1)] == this.v[this.getSubValue(instr, 2)]){
+            this.pc = this.pc + 2;
+        }
     }
     //  6XYY - Set Register Vx to YY Value
     setRegisterV(instr){
@@ -77,10 +157,91 @@ class Processor {
     addToRegisterV(instr){
         this.v[this.getSubValue(instr, 1)] += this.getSubValue(instr, 2, 2);
     }
+
+    //  8XY0 - Vx = Vy
+    assignRegister(instr){
+        this.v[this.getSubValue(instr, 1)] = this.v[this.getSubValue(instr, 2)];
+    }
+
+    //  8XY1 - Vx = Vx | Vy
+    orRegisters(instr){
+        let orValue = this.v[this.getSubValue(instr, 1)] | this.v[this.getSubValue(instr, 2)]
+        this.v[this.getSubValue(instr, 1)] = orValue
+    }
+
+    //  8XY2 - Vx = Vx & Vy
+    andRegisters(instr){
+        let andValue = this.v[this.getSubValue(instr, 1)] & this.v[this.getSubValue(instr, 2)]
+        this.v[this.getSubValue(instr, 1)] = andValue
+    }
+
+    //  8XY3 - Vx = Vx ^ Vy
+    xorRegisters(instr){
+        let xorValue = this.v[this.getSubValue(instr, 1)] ^ this.v[this.getSubValue(instr, 2)]
+        this.v[this.getSubValue(instr, 1)] = xorValue
+    }
+
+    //  8XY4 - Vx = Vx + Vy
+    addRegisters(instr){
+        let sumValue = this.v[this.getSubValue(instr, 1)] + this.v[this.getSubValue(instr, 2)]
+        this.v[this.getSubValue(instr, 1)] = sumValue
+        this.v[0xF] = sumValue > 255 ? 1 : 0
+    }
+
+    //  8XY5 - Vx = Vx - Vy
+    diffRegisters(instr){
+        let diffValue = this.v[this.getSubValue(instr, 1)] - this.v[this.getSubValue(instr, 2)]
+        this.v[this.getSubValue(instr, 1)] = diffValue
+        this.v[0xF] = diffValue > 0 ? 1 : 0
+    }
+
+    //  8XY6 - Vx = Vy = Vy >> 1
+    shiftRight(instr){
+        this.v[0xF] = this.v[this.getSubValue(instr, 2)] & 1
+        this.v[this.getSubValue(instr, 2)] = this.v[this.getSubValue(instr, 2)] >> 1
+        this.v[this.getSubValue(instr, 1)] = this.v[this.getSubValue(instr, 2)]
+    }
+
+    //  8XY7 - Vx = Vy - Vx
+    diffRegisters2(instr){
+        let diffValue = this.v[this.getSubValue(instr, 2)] - this.v[this.getSubValue(instr, 1)]
+        this.v[this.getSubValue(instr, 1)] = diffValue
+        this.v[0xF] = diffValue > 0 ? 1 : 0
+    }
+
+    //  8XYE - Vx = Vy = Vy << 1
+    shiftLeft(instr){
+        this.v[0xF] = (this.v[this.getSubValue(instr, 2)] & 0x80) >> 7
+        this.v[this.getSubValue(instr, 2)] = this.v[this.getSubValue(instr, 2)] << 1
+        this.v[this.getSubValue(instr, 1)] = this.v[this.getSubValue(instr, 2)]
+    }
+
+    //  9XY0 - Skip Next Instruction if Vx = Vy
+    skipIfNotEqual(instr){
+        if(this.getSubValue(instr, 1) != this.getSubValue(instr, 2)){
+            this.pc = this.pc + 2
+        }
+    }
+
     //  ANNN - Set The I register value to NNN
     setI(instr){
         this.i = this.getSubValue(instr, 1, 3);
     }
+
+    //  BNNN - Jump to NNN + V0
+    jumpPlusRegister(instr){
+        let address = this.getSubValue(instr, 1, 3) + this.v[0]
+        if(address == this.pc) this.stop();
+        else this.pc = address
+        this.pc = this.pc - 2;
+    }
+
+    //  CXKK - Vx = (Random Byte) & KK
+    random(instr){
+        let random = Math.floor(Math.random() * 256)
+        this.v[this.getSubValue(instr, 1)] = random & this.getSubValue(instr, 2, 2)
+    }
+
     //  DXYN - Write on Screen(X, Y) N byte in sprite form (8xN pixel matrix) starting to read at I index
     drawSprite(instr){
         let x = this.v[this.getSubValue(instr, 1)]
@@ -90,6 +251,46 @@ class Processor {
                     let byteToWrite = this.Memory.getAt(this.i + offs)
                     setTimeout(()=>{this.Screen.writeByte(x, y + offs, byteToWrite)}, 0);
                 }
+    }
+
+    //  FX1E - I = I + Vx
+    addRegisterToI(instr){
+        this.i += this.getSubValue(instr, 1, 1);
+    }
+
+    //  FX29 - I = Vx * 5 (Set I Location To Default System Sprite)
+    setIToFontLocation(instr){
+        this.i = this.getSubValue(instr, 1, 1) * 5;
+    }
+
+    //  FX33 - Stores The BCD representation of Vx in I, I+1, I+2
+    bcdOfRegister(instr){
+        let value = this.getSubValue(instr, 1, 1);
+        let hundreds = Math.floor(value / 100)
+        value -= hundreds * 100
+        let tens = Math.floor(value / 10)
+        value -= tens * 10
+        this.Memory.setAt(this.i, hundreds)
+        this.Memory.setAt(this.i+1, tens)
+        this.Memory.setAt(this.i+2, value)
+    }
+
+    //  FX55 - Store V0 : Vx registers in Memory starting at address I, then I = I + X + 1
+    storeRegisters(instr){
+        let lastRegister = this.getSubValue(instr, 1)
+        for(let offs = 0; offs <= lastRegister; offs++){
+            this.Memory.setAt(this.i + offs, this.v[offs])
+        }
+        this.i += lastRegister + 1
+    }
+
+    //  FX65 - read from memory starting at I and load in V0 : VX, then I = I + X + 1
+    loadRegisters(instr){
+        let lastRegister = this.getSubValue(instr, 1)
+        for(let offs = 0; offs <= lastRegister; offs++){
+            this.v[offs] = this.Memory.getAt(this.i + offs)
+        }
+        this.i += lastRegister + 1
     }
 
     //END OF Instruction Set ---------
