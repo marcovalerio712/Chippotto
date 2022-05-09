@@ -1,8 +1,7 @@
 class Memory {
     constructor() {
         this.memory = new Uint8Array(4096)
-
-
+        this.initializeSpritesInMemory()
     }
 
     initializeSpritesInMemory() {
@@ -32,6 +31,17 @@ class Memory {
             this.memory[i] = sprites[i];
         }
     }
+    loadRom(code) {
+        for (let offs = 0; offs < code.length; offs++) {
+            this.memory[0x200 + offs] = code[offs]
+        }
+    }
+    memoryDump() {
+        console.log(this.memory)
+    }
+    getAt(addr) {
+        return this.memory[addr]
+    }
 }
 
-export default Memory
+export default Memory;
