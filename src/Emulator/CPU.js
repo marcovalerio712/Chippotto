@@ -2,9 +2,10 @@ import Memory from "./Memory.js";
 import Screen from "./Screen.js";
 
 class Processor {
-    constructor(Memory, Screen) {
+    constructor(Memory, Screen, keyBoard) {
         this.Memory = Memory
         this.Screen = Screen
+        this.keyBoard = keyBoard
         this.Stack = new Uint16Array(32)
         
         this.v = new Uint8Array(16)
@@ -252,6 +253,8 @@ class Processor {
                     this.Screen.writeByte(x, y + offs, byteToWrite)
                 }
     }
+
+    //  
 
     //  FX1E - I = I + Vx
     addRegisterToI(instr){

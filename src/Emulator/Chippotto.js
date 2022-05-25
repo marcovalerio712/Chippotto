@@ -3,11 +3,12 @@ import Screen from "./Screen.js";
 import Processor from "./CPU.js";
 
 class Chippotto {
-    constructor(screen, LoadRom, nextOperation) {
+    constructor(screen, keyBoard, LoadRom, nextOperation) {
 
+        this.keyBoard = keyBoard
         this.Memory = new Memory()
         this.Screen = new Screen(screen)
-        this.Processor = new Processor(this.Memory, this.Screen)
+        this.Processor = new Processor(this.Memory, this.Screen, this.keyBoard)
         this.nextOp = nextOperation
         this.Rom = LoadRom
         this.initializeEmulator()
