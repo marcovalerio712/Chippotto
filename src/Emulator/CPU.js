@@ -64,23 +64,27 @@ class Processor {
 
         //Put the ambiguous cases here
         this.instructionSet.set(0x0000, (opCode) => this.executeInstruction(opCode, 0xF0FF));
-        this.instructionSet.set(0x8000, (opCode) => this.executeInstruction(opCode, 0xF00F));
+        this.instructionSet.set(0x8000, (opCode) => this.executeInstruction(opCode + 1, 0xF00F));
         this.instructionSet.set(0xF000, (opCode) => this.executeInstruction(opCode, 0xF0FF));
     }
 
     run() {
         while (this.pc < 4096) {
-            let instruction = this.fetchInstruction()
-            console.log("----------------------")
+            this.runStep()
+        }
+    }
+
+    runStep(){
+        let instruction = this.fetchInstruction()
+        console.log("----------------------")
             console.log("opcode: " + instruction.toString(16).padStart(2, '0'))
             console.log("I: " + this.i)
             console.log("pc: " + this.pc)
             console.log("registers: ", this.v)
             console.log("sp: " + this.sp)
             console.log("stack: " + this.Stack)
-            this.executeInstruction(instruction)
-            this.pc += 2
-        }
+        this.executeInstruction(instruction)
+        this.pc += 2
     }
 
     //This method reads the next 2 byte to PC and combine them into a single 16 bit word representing the opcode
@@ -93,10 +97,6 @@ class Processor {
 
     //This method retrieves the correct function from the hash-map given the opcode, and executes it
     executeInstruction(opCode, mask = 0xF000){
-
-        if(opCode & mask == 0x8000)
-            opCode += 1
-
         const operation = this.instructionSet.get(opCode & mask)
         console.log(operation)
         operation(opCode);
@@ -249,7 +249,7 @@ class Processor {
                 let n = this.getSubValue(instr, 3)
                 for (let offs = 0; offs < n; offs += 1) {
                     let byteToWrite = this.Memory.getAt(this.i + offs)
-                    setTimeout(()=>{this.Screen.writeByte(x, y + offs, byteToWrite)}, 0);
+                    this.Screen.writeByte(x, y + offs, byteToWrite)
                 }
     }
 
