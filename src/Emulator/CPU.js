@@ -13,6 +13,9 @@ class Processor {
         this.pc = 0x200
         this.sp = 0
 
+        this.dt = 0
+        this.st = 0
+
         this.setupInstructionSet()
     }
 
@@ -56,20 +59,29 @@ class Processor {
         this.instructionSet.set(0xD000, (opCode) => this.drawSprite(opCode));
 
         //TODO Input Instructions
+        this.instructionSet.set(0XE09E, (opCode) => this.skipIfPressed(opCode));
+        this.instructionSet.set(0XE0A1, (opCode) => this.skipIfNotPressed(opCode));
+
+        this.instructionSet.set(0XF007, (opCode) => this.setRegisterToDelay(opCode));
+        this.instructionSet.set(0XF00A, (opCode) => this.waitForButton(opCode));
+        this.instructionSet.set(0XF015, (opCode) => this.setDelayToRegister(opCode));
+        this.instructionSet.set(0XF018, (opCode) => this.setSoundToRegister(opCode));
 
         this.instructionSet.set(0xF01E, (opCode) => this.addRegisterToI(opCode));
         this.instructionSet.set(0xF029, (opCode) => this.setIToFontLocation(opCode));
         this.instructionSet.set(0xF033, (opCode) => this.bcdOfRegister(opCode));
         this.instructionSet.set(0xF055, (opCode) => this.storeRegisters(opCode));
-        this.instructionSet.set(0xF065, (opCode) => this.loadRegisters(opCode));    
+        this.instructionSet.set(0xF065, (opCode) => this.loadRegisters(opCode));
 
         //Put the ambiguous cases here
         this.instructionSet.set(0x0000, (opCode) => this.executeInstruction(opCode, 0xF0FF));
         this.instructionSet.set(0x8000, (opCode) => this.executeInstruction(opCode + 1, 0xF00F));
+        this.instructionSet.set(0xE000, (opCode) => this.executeInstruction(opCode, 0XF0FF))
         this.instructionSet.set(0xF000, (opCode) => this.executeInstruction(opCode, 0xF0FF));
     }
 
     run() {
+        setInterval(decreaseTimers, 1000/60);
         while (this.pc < 4096) {
             this.runStep()
         }
@@ -101,6 +113,13 @@ class Processor {
         const operation = this.instructionSet.get(opCode & mask)
         console.log(operation)
         operation(opCode);
+    }
+
+    decreaseTimers(){
+        if(this.st > 0)
+            this.st--;
+        if(this.dt > 0)
+            this.dt--;
     }
    
     //Not an official instruction, used to stop the execution loop
@@ -219,7 +238,7 @@ class Processor {
 
     //  9XY0 - Skip Next Instruction if Vx = Vy
     skipIfNotEqual(instr){
-        if(this.getSubValue(instr, 1) != this.getSubValue(instr, 2)){
+        if(this.v[this.getSubValue(instr, 1)] != this.v[this.getSubValue(instr, 2)]){
             this.pc = this.pc + 2
         }
     }
@@ -254,7 +273,45 @@ class Processor {
                 }
     }
 
-    //  
+    //  EX9E - Skip next instruction if Key VX is Pressed
+    skipIfPressed(instr){
+        if(this.keyBoard.buffer[this.v[this.getSubValue(instr, 1, 1)]])
+            pc = pc + 2
+    }
+
+    //  EXA1 - Skip next instruction if Key VX is not Pressed
+    skipIfNotPressed(instr){
+        if(!this.keyBoard.buffer[this.v[this.getSubValue(instr, 1, 1)]])
+            pc = pc + 2
+    }
+
+    //  FX07 - Put value of DT in VX
+    setRegisterToDelay(instr){
+        this.v[this.getSubValue(instr, 1, 1)] = this.dt
+    }
+
+    //  FX0A - Wait for input K and put in X
+    waitForButton(instr)
+    {
+        while(true){
+            this.keyBoard.buffer.forEach(element => {
+                if(element){
+                    this.v[this.getSubValue(instr, 1, 1)] = this.keyBoard.lastPressedButton
+                    return;
+                }
+            });
+        }
+    } 
+
+    //  FX15 - Put value of VX in DT
+    setDelayToRegister(instr){
+        this.dt = this.v[this.getSubValue(instr, 1, 1)]
+    }
+
+    //  FX18 - Put value of VX in ST
+    setSoundToRegister(instr){
+        this.st = this.v[this.getSubValue(instr, 1, 1)]
+    }
 
     //  FX1E - I = I + Vx
     addRegisterToI(instr){

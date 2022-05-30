@@ -16,7 +16,7 @@ class Chippotto {
 
     initializeEmulator() {
         this.Rom.addEventListener("click", () => {
-            fetch('./../../IgnoreForTest/chip8-roms-master/chip8-roms-master/demos/Maze.ch8')
+            fetch('./../../IgnoreForTest/chip8-roms-master/chip8-test-rom.ch8')
                 .then((data) => data.blob())
                 .then((c) => c.arrayBuffer())
                 .then((aB) => {

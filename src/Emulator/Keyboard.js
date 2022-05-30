@@ -12,7 +12,7 @@ class KeyBoard{
                 this.buffer[elementValue] = true
                 console.log(element.innerHTML + " down")
             }
-            element.onpointerup = ()=> {
+            element.onpointerup = () => {
                 this.buffer[elementValue] = false
                 console.log(element.innerHTML + " up")
             }
